@@ -3,10 +3,15 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(request: NextRequest) {
     try {
         return NextResponse.json({
-            status: "success",
-            code: 200,
-            data: {
-                items: ["Новость 1", "Новость 2", "Новость 3"]
+            "response": {
+                "text": "Привет! Это ответ от навыка.",
+                "end_session": false
+            },
+            "version": "1.0",
+            "session": {
+                "session_id": "1234567890",
+                "user_id": "user123",
+                "message_id": 0
             }
         })
     }
