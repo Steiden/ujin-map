@@ -23,11 +23,18 @@ export async function GET() {
 			},
 		});
 
+		const interests = response.data?.data?.targeting?.groups;
+		interests.forEach((interest: any) => {
+			interest?.options?.forEach((option: any) => {
+				option.selected = Boolean(Math.round(Math.random()));
+			});
+		});
+
 		return NextResponse.json({
 			status: "success",
 			code: 200,
 			message: "Список интересов",
-			data: response.data?.data?.targeting?.groups,
+			data: interests,
 		});
 	} catch (error) {
 		return NextResponse.json({
