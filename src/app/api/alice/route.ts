@@ -129,20 +129,6 @@ export async function POST(request: NextRequest) {
         text: responseText,
         tts: responseTTS,
         end_session: false,
-        buttons: [
-          {
-            title: "Все мероприятия",
-            url: "https://ujin-pdf.vercel.app",
-            hide: false
-          },
-          {
-            title: "Помощь",
-            payload: {
-              command: "help"
-            },
-            hide: true
-          }
-        ]
       },
       version: body.version,
       session: body.session
