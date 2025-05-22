@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
     try {
         const { login, password } = await request.json();
 
-        const response = await axios.post()
+        // const response = await axios.post()
     }
     catch (error) {
         return NextResponse.json({
