@@ -1,8 +1,8 @@
 'use client'
 import Image from "next/image";
 import { YMaps, Map } from '@pbe/react-yandex-maps';
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Button } from "@/shared/components/ui/button";
+import { Input } from "@/shared/components/ui/input";
 
 export default function Home() {
   return (
