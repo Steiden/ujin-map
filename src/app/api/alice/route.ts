@@ -33,7 +33,7 @@ export async function POST(request: NextRequest) {
 		const body = await request.json();
 
 		// Получение событий
-		const eventsResponse = await axios.get("https://sinfully-tops-possum.cloudpub.ru/events");
+		const eventsResponse = await axios.get("https://sinfully-tops-possum.cloudpub.ru/events").catch();
 		const events: Event[] = eventsResponse.data;
 
 		// Запись адреса в события
@@ -46,7 +46,7 @@ export async function POST(request: NextRequest) {
 					results: "1",
 					apikey: process.env.YANDEX_MAP_API,
 				},
-			});
+			}).catch();
 			const address = addressResponse.data.response.GeoObjectCollection.featureMember[0];
 			event.address = address;
 		});
