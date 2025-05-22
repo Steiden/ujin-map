@@ -3,7 +3,7 @@ import { YMaps, Map, Placemark } from '@pbe/react-yandex-maps';
 import { Input } from "@/shared/components/ui/input";
 import axios from 'axios';
 import { useEffect, useState, useRef } from 'react';
-import { Users } from 'lucide-react';
+import { ChevronDown, ChevronUp, Users } from 'lucide-react';
 
 export default function Home() {
   const [events, setEvents] = useState<any[]>([]);
@@ -15,6 +15,8 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
   const mapRef = useRef<any>(null);
+  const [initialLoad, setInitialLoad] = useState(true); // Флаг первой загрузки
+  const [showAllCategories, setShowAllCategories] = useState(false);
 
   // Загрузка событий
   useEffect(() => {
@@ -50,6 +52,14 @@ export default function Home() {
         const res = await axios.get('https://sinfully-tops-possum.cloudpub.ru/interests');
         if (isMounted) {
           setCategory(res.data);
+          
+          // Выбираем 4 случайные категории только при первой загрузке
+          if (initialLoad && res.data.length > 0) {
+            const shuffled = [...res.data].sort(() => 0.5 - Math.random());
+            const randomCategories = shuffled.slice(0, 4).map(c => c.id);
+            setSelectedCategories(randomCategories);
+            setInitialLoad(false);
+          }
         }
       } catch (err) {
         if (isMounted) {
@@ -64,7 +74,7 @@ export default function Home() {
     fetchData();
   
     return () => { isMounted = false; };
-  }, []);
+  }, [initialLoad]);
 
   const handleCategoryClick = (categoryId: number) => {
     setSelectedCategories(prev => 
@@ -149,29 +159,45 @@ export default function Home() {
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
             </div>
           ) : (
-            <div className='flex flex-wrap'>
-              {category.map((item) => (
-                <div 
-                  key={item.id} 
-                  className='flex flex-col w-[20%] items-center h-[82px] cursor-pointer'
-                  onClick={() => handleCategoryClick(item.id)}
-                >
+            <>
+              <div className='flex items-center justify-between w-full mb-[10px]'>
+                <div className='text-[20px] font-medium'>Категории</div>
+                {category.length > 10 && (
                   <div 
-                    style={{
-                      backgroundColor: item.color ? `#${item.color}` : '#9c89fa',
-                      //border: selectedCategories.includes(item.id) ? '2px solid #3f51b5' : 'none'
-                      opacity: selectedCategories.includes(item.id) ? '100%' : "70%"
-                    }} 
-                    className='w-[48px] h-[48px] rounded-full mb-[6px] flex items-center justify-center opacity-50 transition-all'
+                    className='flex items-center text-[14px] text-[#878787] hover:text-[#373737] transition-all cursor-pointer'
+                    onClick={() => setShowAllCategories(!showAllCategories)}
                   >
-                    <div dangerouslySetInnerHTML={{ __html: item.img }} />
+                    {showAllCategories ? 'Скрыть категории' : 'Все категории'}
+                    {showAllCategories ? <ChevronUp className="ml-1 w-4 h-4" /> : <ChevronDown className="ml-1 w-4 h-4" />}
                   </div>
-                  <div className='text-[12px] text-center leading-[100%]'>
-                    {item.title}
-                  </div>
-                </div>
-              ))}
-            </div>
+                )}
+              </div>
+              <div className='flex flex-wrap transition-all'>
+                {category
+                  .slice(0, showAllCategories ? category.length : 10)
+                  .map((item) => (
+                    <div 
+                      key={item.id} 
+                      className='flex flex-col w-[20%] items-center h-[82px] cursor-pointer'
+                      onClick={() => handleCategoryClick(item.id)}
+                    >
+                      <div 
+                        style={{
+                          backgroundColor: item.color ? `#${item.color}` : '#9c89fa',
+                          opacity: selectedCategories.includes(item.id) ? '100%' : "70%"
+                        }} 
+                        className='w-[48px] h-[48px] rounded-full mb-[6px] flex items-center justify-center transition-all'
+                      >
+                        <div dangerouslySetInnerHTML={{ __html: item.img }} />
+                      </div>
+                      <div className='text-[12px] text-center leading-[100%]'>
+                        {item.title}
+                      </div>
+                    </div>
+                  ))
+                }
+              </div>
+            </>
           )}
 
           {/* Прелоадер событий */}
