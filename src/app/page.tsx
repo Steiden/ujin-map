@@ -8,12 +8,12 @@ export default function Home() {
   return (
     <div className="w-dvw h-dvh flex">
       <div className="w-[480px] h-full bg-[#FFF] p-4">
-        <Input type="email" placeholder="Email" />
+        <Input type="text" placeholder="Поиск"  />
         <Button>Button</Button>
       </div>
       <div className="w-[calc(100%-480px)] h-full">
         <YMaps>
-            <Map width={'100%'} height={'100%'} defaultState={{ center: [55.75, 37.57], zoom: 9 }} />
+            <Map width={'100%'} height={'100%'} defaultState={{ center: [55.75, 37.57], zoom:14 }} />
         </YMaps>
       </div>
     </div>
