@@ -1,5 +1,4 @@
 'use client'
-import Image from "next/image";
 import { YMaps, Map } from '@pbe/react-yandex-maps';
 import { Button } from "@/shared/components/ui/button";
 import { Input } from "@/shared/components/ui/input";

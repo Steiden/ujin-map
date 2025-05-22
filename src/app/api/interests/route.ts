@@ -1,11 +1,14 @@
 import { api } from "@/shared/api";
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 export async function GET() {
 	try {
-		const cookieStore = await cookies();
-		const token = cookieStore.get("session-token")?.value;
+		const authReponse = await api.post("/v1/auth/crm/authenticate", {
+			login: "hakathon2025-11@ujin.tech",
+			password: "honivefo",
+		});
+
+		const token = authReponse.data?.data?.user?.token;
 
 		if (!token) {
 			return NextResponse.json({
