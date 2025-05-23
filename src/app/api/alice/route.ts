@@ -7,7 +7,7 @@ export async function POST(request: NextRequest) {
 		const body = await request.json();
 
 		// Получение событий
-		const events = await prisma.events.findMany();
+		const events: any[] = await axios.get("/data/events.json");
 
 		// Запись адреса в события
 		events.forEach(async (event) => {

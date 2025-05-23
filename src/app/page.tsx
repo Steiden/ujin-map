@@ -83,7 +83,8 @@ export default function Home() {
     
     async function fetchData() {
       try {
-        const res = await axios.get('https://sinfully-tops-possum.cloudpub.ru/events');
+        // const res = await axios.get('https://sinfully-tops-possum.cloudpub.ru/events');
+        const res = await axios.get('/data/events.json');
         if (isMounted) {
           setEvents(res.data);
         }
@@ -108,7 +109,8 @@ export default function Home() {
     
     async function fetchData() {
       try {
-        const res = await axios.get('https://sinfully-tops-possum.cloudpub.ru/interests');
+        // const res = await axios.get('https://sinfully-tops-possum.cloudpub.ru/interests');
+        const res = await axios.get('/data/interests.json');
         if (isMounted) {
           setCategory(res.data);
           
@@ -228,7 +230,7 @@ export default function Home() {
   return (
     <div className="w-screen h-screen flex">
       {/* Боковая панель */}
-      <div className="w-[480px] h-full bg-white p-4 flex flex-col border-r">
+      <div className="w-[480px] min-w-[480px] h-full bg-white p-4 flex flex-col border-r">
         <div className="flex items-center gap-2 mb-4">
           <Input 
             type="text" 
@@ -293,7 +295,9 @@ export default function Home() {
                       >
                         <div dangerouslySetInnerHTML={{ __html: item.img }} />
                       </div>
-                      <div className='text-[12px] text-center leading-[100%]'>
+                      <div className='text-[12px] text-center leading-[100%]' style={{
+                        fontWeight: selectedCategories.includes(item.id) ? "600" : "400"
+                      }}>
                         {item.title}
                       </div>
                     </div>
