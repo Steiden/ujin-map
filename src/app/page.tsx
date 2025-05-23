@@ -3,7 +3,7 @@ import { YMaps, Map, Placemark } from '@pbe/react-yandex-maps';
 import { Input } from "@/shared/components/ui/input";
 import axios from 'axios';
 import { useEffect, useState, useRef } from 'react';
-import { ChevronDown, ChevronUp, Users } from 'lucide-react';
+import { Users, ChevronDown, ChevronUp, LocateFixed } from 'lucide-react';
 
 export default function Home() {
   const [events, setEvents] = useState<any[]>([]);
@@ -14,9 +14,46 @@ export default function Home() {
   const [error, setError] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
-  const mapRef = useRef<any>(null);
-  const [initialLoad, setInitialLoad] = useState(true); // Флаг первой загрузки
   const [showAllCategories, setShowAllCategories] = useState(false);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const [locationError, setLocationError] = useState('');
+  const mapRef = useRef<any>(null);
+  const [initialLoad, setInitialLoad] = useState(true);
+
+  // Определение местоположения пользователя
+  const getUserLocation = () => {
+    setLocationLoading(true);
+    setLocationError('');
+    
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation([position.coords.latitude, position.coords.longitude]);
+          setLocationLoading(false);
+          
+          // Центрируем карту на местоположении пользователя
+          if (mapRef.current) {
+            mapRef.current.setCenter([position.coords.latitude, position.coords.longitude], 14);
+          }
+        },
+        (error) => {
+          setLocationError('Не удалось определить местоположение');
+          setLocationLoading(false);
+          console.error('Geolocation error:', error);
+        },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    } else {
+      setLocationError('Геолокация не поддерживается вашим браузером');
+      setLocationLoading(false);
+    }
+  };
+
+  // Автоматически определяем местоположение при загрузке
+  useEffect(() => {
+    getUserLocation();
+  }, []);
 
   // Загрузка событий
   useEffect(() => {
@@ -53,7 +90,6 @@ export default function Home() {
         if (isMounted) {
           setCategory(res.data);
           
-          // Выбираем 4 случайные категории только при первой загрузке
           if (initialLoad && res.data.length > 0) {
             const shuffled = [...res.data].sort(() => 0.5 - Math.random());
             const randomCategories = shuffled.slice(0, 4).map(c => c.id);
@@ -142,15 +178,31 @@ export default function Home() {
     <div className="w-screen h-screen flex">
       {/* Боковая панель */}
       <div className="w-[480px] h-full bg-white p-4 flex flex-col border-r">
-        <Input 
-          type="text" 
-          placeholder="Поиск событий..." 
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="mb-4"
-        />
+        <div className="flex items-center gap-2 mb-4">
+          <Input 
+            type="text" 
+            placeholder="Поиск событий..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="flex-1"
+          />
+          <button 
+            onClick={getUserLocation}
+            disabled={locationLoading}
+            className="p-2 rounded-full bg-gray-100 hover:bg-gray-200 transition-colors"
+            title="Определить мое местоположение"
+          >
+            {locationLoading ? (
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
+            ) : (
+              <LocateFixed className="w-5 h-5" />
+            )}
+          </button>
+        </div>
         
-        {error && <p className="text-red-500">{error}</p>}
+        {(error || locationError) && (
+          <p className="text-red-500 mb-2">{error || locationError}</p>
+        )}
         
         <div className="flex-1 overflow-y-auto">
           {/* Прелоадер категорий */}
@@ -172,7 +224,7 @@ export default function Home() {
                   </div>
                 )}
               </div>
-              <div className='flex flex-wrap transition-all'>
+              <div className='flex flex-wrap'>
                 {category
                   .slice(0, showAllCategories ? category.length : 10)
                   .map((item) => (
@@ -232,13 +284,11 @@ export default function Home() {
                     {event.description && (
                       <p className="text-sm text-gray-600 mt-1 line-clamp-2">{event.description}</p>
                     )}
-                    {event.participants_count && (
+                    {event.direction && (
                       <div className="flex flex-col mt-1 text-xs text-gray-500">
-                        {event.direction && (
-                          <span className="px-2 py-0.5 bg-gray-100 rounded-full w-fit">
-                            {event.direction}
-                          </span>
-                        )}
+                        <span className="px-2 py-0.5 bg-gray-100 rounded-full w-fit">
+                          {event.direction}
+                        </span>
                       </div>
                     )}
                   </div>
@@ -268,13 +318,31 @@ export default function Home() {
             width="100%"
             height="100%"
             defaultState={{ 
-              center: [58.009535, 56.224404],
+              center: userLocation || [58.009535, 56.224404],
               zoom: 14,
               controls: ['zoomControl', 'fullscreenControl']
             }}
             modules={['control.ZoomControl', 'control.FullscreenControl']}
             instanceRef={mapRef}
           >
+            {/* Местоположение пользователя */}
+            {userLocation && (
+              <Placemark
+                geometry={userLocation}
+                options={{
+                  iconLayout: 'default#image', // Указываем, что используем картинку
+                  iconImageHref: '/ya.png', // Путь к вашей картинке
+                  iconImageSize: [32, 32], // Размер иконки
+                  iconImageOffset: [-16, -32], // Смещение для правильного позиционирования
+                }}
+                properties={{
+                  hintContent: 'Ваше местоположение',
+                  balloonContent: 'Вы здесь'
+                }}
+              />
+            )}
+
+            {/* Мероприятия */}
             {filteredEvents.map(event => (
               <Placemark
                 key={event.id}
