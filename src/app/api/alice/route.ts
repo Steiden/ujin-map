@@ -1380,7 +1380,7 @@ const filterEvents = (events: Event[], dateFilter: "today" | "tomorrow" | "weeke
 	// 		isDateInRange(range.start, eventStart, eventEnd)
 	// 	);
 	// });
-	return events;
+	return newEvents;
 };
 
 // Остальные функции остаются без изменений
