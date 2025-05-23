@@ -1385,8 +1385,8 @@ const formatDate = (dateStr: string) => {
 export async function POST(request: NextRequest) {
 	try {
 		const body = await request.json();
-		const payload = body.request.payload;
-		const sessionState = body.state.session || {};
+		const payload = body.request?.payload;
+		const sessionState = body.state?.session || {};
 
 		// Обработка действий из кнопок
 		let dateFilter = sessionState.dateFilter;
