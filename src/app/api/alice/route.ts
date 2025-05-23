@@ -1367,7 +1367,7 @@ const filterEvents = (events: Event[], dateFilter: "today" | "tomorrow" | "weeke
 			);
 			break;
 		default:
-			return [];
+			return (newEvents = events.filter((event) => new Date(event.start_date) >= new Date()));
 	}
 
 	// return events.filter((event) => {
