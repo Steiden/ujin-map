@@ -363,9 +363,12 @@ export default function Home() {
               ) : (
                 <div className="p-6 text-center">
                   <p className="text-gray-500 mb-2">Нет событий, соответствующих фильтрам</p>
-                  {selectedCategories.length > 0 && (
+                  {selectedCategories.length > 0 || radius && (
                     <button 
-                      onClick={() => setSelectedCategories([])}
+                      onClick={() => {
+                        setSelectedCategories([])
+                        setRadius(null)
+                      }}
                       className="text-blue-600 hover:text-blue-800 text-sm"
                     >
                       Сбросить фильтры
