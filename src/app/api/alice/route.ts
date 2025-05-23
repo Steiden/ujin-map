@@ -1350,7 +1350,7 @@ const filterEvents = (
 	dateFilter: "today" | "tomorrow" | "weekend" | null | undefined
 ) => {
 	let range: { start: Date; end: Date };
-	let newEvents = events;
+	let newEvents = events.filter((event) => new Date(event.start_date) >= new Date());
 
 	switch (dateFilter) {
 		case "today":
@@ -1370,19 +1370,9 @@ const filterEvents = (
 			);
 			break;
 		default:
-			newEvents = events.filter((event) => new Date(event.start_date) >= new Date());
+			break;
 	}
 
-	// return events.filter((event) => {
-	// 	const eventStart = getStartOfDay(new Date(event.start_date));
-	// 	const eventEnd = getStartOfDay(new Date(event.end_date));
-
-	// 	// Проверяем пересечение диапазонов
-	// 	return (
-	// 		isDateInRange(eventStart, range.start, range.end) ||
-	// 		isDateInRange(range.start, eventStart, eventEnd)
-	// 	);
-	// });
 	return newEvents;
 };
 
