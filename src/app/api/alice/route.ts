@@ -1305,159 +1305,131 @@ const data: Event[] = [
 	},
 ];
 
-// Вспомогательные функции дат
-const getToday = () => {
-	const date = new Date();
-	date.setHours(0, 0, 0, 0);
-	return date;
+// Вспомогательные функции для работы с датами
+const getStartOfDay = (date: Date): Date => {
+	const newDate = new Date(date);
+	newDate.setHours(0, 0, 0, 0);
+	return newDate;
 };
 
-const getTomorrow = () => {
-	const date = getToday();
-	date.setDate(date.getDate() + 1);
-	return date;
+const getTodayRange = () => {
+	const start = getStartOfDay(new Date());
+	const end = new Date(start);
+	end.setDate(start.getDate() + 1);
+	return { start, end };
 };
 
-const getWeekend = () => {
-	const date = getToday();
-	const day = date.getDay();
-	const diff = date.getDate() + (day === 0 ? 6 : 6 - day);
-	return {
-		start: new Date(date.setDate(diff - 5)), // Суббота
-		end: new Date(date.setDate(diff - 5 + 1)), // Воскресенье
-	};
+const getTomorrowRange = () => {
+	const start = getStartOfDay(new Date());
+	start.setDate(start.getDate() + 1);
+	const end = new Date(start);
+	end.setDate(start.getDate() + 1);
+	return { start, end };
 };
 
-const normalizeDate = (action?: string): YandexDateTime => {
-	switch (action) {
+const getWeekendRange = () => {
+	const today = getStartOfDay(new Date());
+	const dayOfWeek = today.getDay();
+	const daysUntilSaturday = dayOfWeek === 6 ? 0 : 6 - dayOfWeek;
+
+	const start = new Date(today);
+	start.setDate(today.getDate() + daysUntilSaturday);
+
+	const end = new Date(start);
+	end.setDate(start.getDate() + 1); // Воскресенье
+
+	return { start, end };
+};
+
+const isDateInRange = (date: Date, start: Date, end: Date): boolean => {
+	return date >= start && date < end;
+};
+
+const filterEvents = (events: Event[], dateFilter: "today" | "tomorrow" | "weekend") => {
+	let range: { start: Date; end: Date };
+
+	switch (dateFilter) {
 		case "today":
-			return {
-				year: getToday().getFullYear(),
-				month: getToday().getMonth() + 1,
-				day: getToday().getDate(),
-			};
+			range = getTodayRange();
+			break;
 		case "tomorrow":
-			return {
-				year: getTomorrow().getFullYear(),
-				month: getTomorrow().getMonth() + 1,
-				day: getTomorrow().getDate(),
-			};
+			range = getTomorrowRange();
+			break;
 		case "weekend":
-			const weekend = getWeekend();
-			return {
-				datetime: weekend.start.toISOString(),
-				datetime_to: weekend.end.toISOString(),
-			};
+			range = getWeekendRange();
+			break;
 		default:
-			return {};
+			return [];
 	}
-};
-
-const filterEvents = (events: Event[], dateFilter?: YandexDateTime) => {
-	if (!dateFilter) return events;
-
-	const { datetime, datetime_to } = dateFilter;
-	const filterStart = datetime ? new Date(datetime) : null;
-	const filterEnd = datetime_to ? new Date(datetime_to) : filterStart;
 
 	return events.filter((event) => {
-		const eventStart = new Date(event.start_date);
-		const eventEnd = new Date(event.end_date);
+		const eventStart = getStartOfDay(new Date(event.start_date));
+		const eventEnd = getStartOfDay(new Date(event.end_date));
 
-		if (filterStart && filterEnd) {
-			return (
-				(eventStart >= filterStart && eventStart <= filterEnd) ||
-				(eventEnd >= filterStart && eventEnd <= filterEnd)
-			);
-		}
-		return true;
+		// Проверяем пересечение диапазонов
+		return (
+			isDateInRange(eventStart, range.start, range.end) ||
+			isDateInRange(range.start, eventStart, eventEnd)
+		);
 	});
 };
 
-const formatDate = (dateStr: string) => {
-	const date = new Date(dateStr);
-	return date.toLocaleDateString("ru-RU", {
-		day: "numeric",
-		month: "long",
-	});
-};
+// Остальные функции остаются без изменений
 
 export async function POST(request: NextRequest) {
 	try {
 		const body = await request.json();
-		const payload = body.request?.payload;
-		const sessionState = body.state?.session || {};
+		const payload = body.request.payload;
+		const sessionState = body.state.session || {};
 
-		// Обработка действий из кнопок
-		let dateFilter = sessionState.dateFilter;
+		let currentFilter = sessionState.currentFilter || "today";
 		let offset = sessionState.offset || 0;
 
+		// Обработка действий из кнопок
 		if (payload?.action) {
-			switch (payload.action) {
-				case "show_more":
-					offset += 5;
-					break;
-				case "today":
-				case "tomorrow":
-				case "weekend":
-					dateFilter = normalizeDate(payload.action);
-					offset = 0;
-					break;
+			if (["today", "tomorrow", "weekend"].includes(payload.action)) {
+				currentFilter = payload.action;
+				offset = 0;
+			} else if (payload.action === "show_more") {
+				offset += 5;
 			}
 		}
 
 		// Фильтрация мероприятий
-		let filteredEvents = filterEvents(data, dateFilter);
-
-		// Пагинация
+		const filteredEvents = filterEvents(data, currentFilter);
 		const paginatedEvents = filteredEvents.slice(offset, offset + 5);
 		const hasMore = filteredEvents.length > offset + 5;
 
 		// Формирование ответа
 		let responseText = "";
-		let responseTTS = "";
-		const buttons = [];
-
 		if (paginatedEvents.length > 0) {
-			responseText = `Найдено мероприятий: ${filteredEvents.length}\n`;
-			responseTTS = `Я нашла ${filteredEvents.length} мероприятий. `;
-
+			responseText = `Мероприятия ${getFilterTitle(currentFilter)}:\n`;
 			paginatedEvents.forEach((event, index) => {
 				responseText += `\n${offset + index + 1}. ${event.title} (${formatDate(
 					event.start_date
 				)})`;
-				responseTTS += `${event.title}. `;
 			});
-
-			if (hasMore) {
-				buttons.push({
-					title: "Показать ещё",
-					payload: { action: "show_more" },
-					hide: true,
-				});
-			}
 		} else {
-			responseText = "Мероприятий не найдено";
-			responseTTS = responseText;
+			responseText = `На ${getFilterTitle(currentFilter, true)} мероприятий не найдено`;
 		}
-
-		// Кнопки фильтров
-		buttons.push(
-			{ title: "Сегодня", payload: { action: "today" }, hide: true },
-			{ title: "Завтра", payload: { action: "tomorrow" }, hide: true },
-			{ title: "Выходные", payload: { action: "weekend" }, hide: true }
-		);
 
 		const response = {
 			response: {
 				text: responseText,
-				tts: responseTTS,
+				tts: responseText,
 				end_session: false,
-				buttons,
+				buttons: [
+					...(hasMore
+						? [{ title: "Показать ещё", payload: { action: "show_more" }, hide: true }]
+						: []),
+					{ title: "Сегодня", payload: { action: "today" }, hide: true },
+					{ title: "Завтра", payload: { action: "tomorrow" }, hide: true },
+					{ title: "Выходные", payload: { action: "weekend" }, hide: true },
+				],
 			},
 			version: body.version,
 			session_state: {
-				dateFilter,
+				currentFilter,
 				offset,
 				total: filteredEvents.length,
 			},
@@ -1479,3 +1451,21 @@ export async function POST(request: NextRequest) {
 		);
 	}
 }
+
+// Вспомогательные функции
+const getFilterTitle = (filter: string, genitiveCase: boolean = false) => {
+	const titles: { [key: string]: [string, string] } = {
+		today: ["сегодня", "сегодня"],
+		tomorrow: ["завтра", "завтра"],
+		weekend: ["на выходные", "выходные"],
+	};
+	return titles[filter][genitiveCase ? 1 : 0];
+};
+
+const formatDate = (dateStr: string) => {
+	const date = new Date(dateStr);
+	return date.toLocaleDateString("ru-RU", {
+		day: "numeric",
+		month: "long",
+	});
+};
