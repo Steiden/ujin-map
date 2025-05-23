@@ -1,0 +1,37 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model event_interests {
+  id          Int  @id @default(autoincrement())
+  event_id    Int?
+  interest_id Int?
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model events {
+  id                 Int       @id @default(autoincrement())
+  title              String?
+  start_date         DateTime? @db.Date
+  end_date           DateTime? @db.Date
+  coordinate_one     Float?
+  coordinate_two     Float?
+  direction          String?
+  executor           String?
+  participants_count Int?
+  address            String?
+}
+
+model interests {
+  id    Int     @id @default(autoincrement())
+  title String?
+  color String?
+  img   String?
+}
