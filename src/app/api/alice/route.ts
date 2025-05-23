@@ -1345,7 +1345,10 @@ const isDateInRange = (date: Date, start: Date, end: Date): boolean => {
 	return date >= start && date < end;
 };
 
-const filterEvents = (events: Event[], dateFilter: "today" | "tomorrow" | "weekend") => {
+const filterEvents = (
+	events: Event[],
+	dateFilter: "today" | "tomorrow" | "weekend" | null | undefined
+) => {
 	let range: { start: Date; end: Date };
 	let newEvents = events;
 
@@ -1391,7 +1394,7 @@ export async function POST(request: NextRequest) {
 		const payload = body.request?.payload;
 		const sessionState = body.state?.session || {};
 
-		let currentFilter = sessionState.currentFilter || "today";
+		let currentFilter = sessionState.currentFilter || "";
 		let offset = sessionState.offset || 0;
 
 		// Обработка действий из кнопок
