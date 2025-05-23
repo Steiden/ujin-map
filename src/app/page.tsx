@@ -4,6 +4,23 @@ import { Input } from "@/shared/components/ui/input";
 import axios from 'axios';
 import { useEffect, useState, useRef } from 'react';
 import { Users, ChevronDown, ChevronUp, LocateFixed, MapPin } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/shared/components/ui/tooltip"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/shared/components/ui/dialog"
+import { Button } from '@/shared/components/ui/button';
 
 export default function Home() {
   const [events, setEvents] = useState<any[]>([]);
@@ -247,13 +264,13 @@ export default function Home() {
           ) : (
             <>
               <div className='flex items-center justify-between w-full mb-[10px]'>
-                <div className='text-[20px] font-medium'>Категории</div>
+                <div className='text-[20px] font-medium'>Интересы</div>
                 {category.length > 10 && (
                   <div 
                     className='flex items-center text-[14px] text-[#878787] hover:text-[#373737] transition-all cursor-pointer'
                     onClick={() => setShowAllCategories(!showAllCategories)}
                   >
-                    {showAllCategories ? 'Скрыть категории' : 'Все категории'}
+                    {showAllCategories ? 'Скрыть интересы' : 'Все интересы'}
                     {showAllCategories ? <ChevronUp className="ml-1 w-4 h-4" /> : <ChevronDown className="ml-1 w-4 h-4" />}
                   </div>
                 )}
@@ -270,7 +287,7 @@ export default function Home() {
                       <div 
                         style={{
                           backgroundColor: item.color ? `#${item.color}` : '#9c89fa',
-                          opacity: selectedCategories.includes(item.id) ? '100%' : "70%"
+                          opacity: selectedCategories.includes(item.id) ? '100%' : "40%"
                         }} 
                         className='w-[48px] h-[48px] rounded-full mb-[6px] flex items-center justify-center transition-all'
                       >
@@ -398,11 +415,12 @@ export default function Home() {
           >
             {/* Местоположение пользователя */}
             {userLocation && (
+              <>
               <Placemark
                 geometry={userLocation}
                 options={{
                   iconLayout: 'default#image',
-                  iconImageHref: '/ya.png',
+                  iconImageHref: '/myya.png',
                   iconImageSize: [32, 32],
                   iconImageOffset: [-16, -32],
                 }}
@@ -411,37 +429,20 @@ export default function Home() {
                   balloonContent: 'Вы здесь'
                 }}
               />
+              </>
             )}
 
-            {/* Выбранная точка и радиус */}
-            {selectedPoint && (
-              <>
-                <Placemark
-                  geometry={selectedPoint}
-                  options={{
-                    iconLayout: 'default#image',
-                    iconImageHref: '/map-pin.png', // Ваша кастомная иконка
-                    iconImageSize: [32, 32],
-                    iconImageOffset: [-16, -32],
-                  }}
-                  properties={{
-                    hintContent: 'Центр поиска',
-                    balloonContent: 'Ищем мероприятия в этом районе'
-                  }}
-                />
-                {radius && (
-                  <Circle
-                    geometry={[selectedPoint, radius * 1000]} // радиус в метрах
-                    options={{
-                      fillColor: '#1a73e840',
-                      strokeColor: '#1a73e8',
-                      strokeOpacity: 0.8,
-                      strokeWidth: 2,
-                      fillOpacity: 0.2
-                    }}
-                  />
-                )}
-              </>
+            {userLocation && radius && (
+              <Circle
+                geometry={[userLocation, radius * 1000]} // радиус в метрах
+                options={{
+                  fillColor: '#1a73e840',
+                  strokeColor: '#1a73e8',
+                  strokeOpacity: 0.8,
+                  strokeWidth: 2,
+                  fillOpacity: 0.2
+                }}
+              />
             )}
 
             {/* Мероприятия */}
@@ -467,8 +468,10 @@ export default function Home() {
                   hintContent: event.title || 'Без названия'
                 }}
                 options={{
-                  preset: selectedEventId === event.id ? 'islands#blueDotIcon' : 'islands#circleDotIcon',
-                  iconColor: selectedEventId === event.id ? '#3f51b5' : '#4a4a4a',
+                  iconLayout: 'default#image',
+                  iconImageHref: '/ya.png',
+                  iconImageSize: [32, 32],
+                  iconImageOffset: [-16, -16],
                   balloonCloseButton: true
                 }}
                 onClick={() => {
@@ -478,6 +481,126 @@ export default function Home() {
             ))}
           </Map>
         </YMaps>
+
+        {/* Кнопочки */}
+        <div className='w-[40px] py-[8px] px-[4px] bg-white rounded-3xl translate-y-[-50%] absolute right-[20px] top-[50%] shadow gap-2 flex flex-col'>
+            <Dialog>
+              <DialogTrigger asChild>
+                <div className='cursor-pointer'>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <img src="/day.png" alt="" />
+                    </TooltipTrigger>
+                    <TooltipContent side="left">
+                      <p>Мероприятие дня</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>Мероприятие дня</DialogTitle>
+                </DialogHeader>
+                <div className="flex items-center space-x-2">
+                  <div className="grid flex-1 gap-2">
+                    {events.length > 0 && (
+                      <>
+                        {/* Получаем случайное мероприятие */}
+                        {(() => {
+                          const randomEvent = events[Math.floor(Math.random() * events.length)];
+                          return (
+                            <div className="rounded-lg bg-white">
+                              <h3 className="font-medium text-lg mb-2">{randomEvent.title || 'Без названия'}</h3>
+                              <div className="text-sm text-gray-600 mb-1">
+                                <span className="font-medium">
+                                  {randomEvent.start_date === randomEvent.end_date 
+                                    ? formatDate(randomEvent.start_date)
+                                    : `${formatDate(randomEvent.start_date)} - ${formatDate(randomEvent.end_date)}`
+                                  }
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-700 mb-2">
+                                {randomEvent.executor || 'Организатор не указан'}
+                              </p>
+                              {randomEvent.description && (
+                                <p className="text-sm text-gray-600 line-clamp-2">
+                                  {randomEvent.description}
+                                </p>
+                              )}
+                              <div className="mt-2 flex items-center text-sm text-gray-500">
+                                <Users className="w-4 h-4 mr-1" />
+                                <span>{randomEvent.participants_count || 0} участников</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+            <Dialog>
+              <DialogTrigger asChild>
+                <div className='cursor-pointer'>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <img src="/random.png" alt="" />
+                    </TooltipTrigger>
+                    <TooltipContent side="left">
+                      <p>Случайное мероприятие</p>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                  <DialogTitle>Случайное мероприятие</DialogTitle>
+                </DialogHeader>
+                <div className="flex items-center space-x-2">
+                  <div className="grid flex-1 gap-2">
+                    {events.length > 0 && (
+                      <>
+                        {/* Получаем случайное мероприятие */}
+                        {(() => {
+                          const randomEvent = events[Math.floor(Math.random() * events.length)];
+                          return (
+                            <div className="rounded-lg bg-white">
+                              <h3 className="font-medium text-lg mb-2">{randomEvent.title || 'Без названия'}</h3>
+                              <div className="text-sm text-gray-600 mb-1">
+                                <span className="font-medium">
+                                  {randomEvent.start_date === randomEvent.end_date 
+                                    ? formatDate(randomEvent.start_date)
+                                    : `${formatDate(randomEvent.start_date)} - ${formatDate(randomEvent.end_date)}`
+                                  }
+                                </span>
+                              </div>
+                              <p className="text-sm text-gray-700 mb-2">
+                                {randomEvent.executor || 'Организатор не указан'}
+                              </p>
+                              {randomEvent.description && (
+                                <p className="text-sm text-gray-600 line-clamp-2">
+                                  {randomEvent.description}
+                                </p>
+                              )}
+                              <div className="mt-2 flex items-center text-sm text-gray-500">
+                                <Users className="w-4 h-4 mr-1" />
+                                <span>{randomEvent.participants_count || 0} участников</span>
+                              </div>
+                            </div>
+                          );
+                        })()}
+                      </>
+                    )}
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+        </div>
       </div>
     </div>
   );
