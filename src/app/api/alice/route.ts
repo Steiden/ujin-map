@@ -1412,14 +1412,14 @@ export async function POST(request: NextRequest) {
 		// Формирование ответа
 		let responseText = "";
 		if (paginatedEvents.length > 0) {
-			responseText = `Мероприятия ${getFilterTitle(currentFilter)}:\n`;
+			responseText = `Найденные мероприятия:\n`;
 			paginatedEvents.forEach((event, index) => {
 				responseText += `\n${offset + index + 1}. ${event.title} (${formatDate(
 					event.start_date
 				)})`;
 			});
 		} else {
-			responseText = `На ${getFilterTitle(currentFilter, true)} мероприятий не найдено`;
+			responseText = `Мероприятий не найдено`;
 		}
 
 		const response = {
