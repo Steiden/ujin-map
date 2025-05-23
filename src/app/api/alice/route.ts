@@ -1379,8 +1379,8 @@ const filterEvents = (events: Event[], dateFilter: "today" | "tomorrow" | "weeke
 export async function POST(request: NextRequest) {
 	try {
 		const body = await request.json();
-		const payload = body.request.payload;
-		const sessionState = body.state.session || {};
+		const payload = body.request?.payload;
+		const sessionState = body.state?.session || {};
 
 		let currentFilter = sessionState.currentFilter || "today";
 		let offset = sessionState.offset || 0;
