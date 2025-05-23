@@ -1,9 +1,9 @@
 'use client'
-import { YMaps, Map, Placemark } from '@pbe/react-yandex-maps';
+import { YMaps, Map, Placemark, Circle } from '@pbe/react-yandex-maps';
 import { Input } from "@/shared/components/ui/input";
 import axios from 'axios';
 import { useEffect, useState, useRef } from 'react';
-import { Users, ChevronDown, ChevronUp, LocateFixed } from 'lucide-react';
+import { Users, ChevronDown, ChevronUp, LocateFixed, MapPin } from 'lucide-react';
 
 export default function Home() {
   const [events, setEvents] = useState<any[]>([]);
@@ -18,8 +18,12 @@ export default function Home() {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const [locationError, setLocationError] = useState('');
+  const [radius, setRadius] = useState<number | null>(null);
+  const [selectedPoint, setSelectedPoint] = useState<[number, number] | null>(null);
   const mapRef = useRef<any>(null);
   const [initialLoad, setInitialLoad] = useState(true);
+
+  const radiusOptions = [1, 2, 3, 4, 5, 10, 15]; // Варианты радиуса в км
 
   // Определение местоположения пользователя
   const getUserLocation = () => {
@@ -29,12 +33,13 @@ export default function Home() {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation([position.coords.latitude, position.coords.longitude]);
+          const coords: [number, number] = [position.coords.latitude, position.coords.longitude];
+          setUserLocation(coords);
           setLocationLoading(false);
           
           // Центрируем карту на местоположении пользователя
           if (mapRef.current) {
-            mapRef.current.setCenter([position.coords.latitude, position.coords.longitude], 14);
+            mapRef.current.setCenter(coords, 14);
           }
         },
         (error) => {
@@ -112,6 +117,19 @@ export default function Home() {
     return () => { isMounted = false; };
   }, [initialLoad]);
 
+  // Функция для расчета расстояния между точками (формула Хаверсина)
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+    const R = 6371; // радиус Земли в км
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
   const handleCategoryClick = (categoryId: number) => {
     setSelectedCategories(prev => 
       prev.includes(categoryId) 
@@ -125,7 +143,6 @@ export default function Home() {
     const event = events.find(e => e.id === eventId);
     if (event && mapRef.current) {
       mapRef.current.setCenter([event.coordinate_one, event.coordinate_two], 16);
-      // Открываем балун при клике
       mapRef.current.balloon.open([event.coordinate_one, event.coordinate_two], {
         content: `
           <div style="padding: 10px">
@@ -144,6 +161,14 @@ export default function Home() {
     }
   };
 
+  // Обработчик клика по карте
+  const handleMapClick = (e: any) => {
+    const coords = e.get('coords');
+    setSelectedPoint(coords);
+    setSelectedEventId(null); // Сбрасываем выбранное мероприятие
+  };
+
+  // Фильтрация событий
   const filteredEvents = events.filter(event => {
     if (!event) return false;
   
@@ -160,7 +185,16 @@ export default function Home() {
          selectedCategories.includes(Number(interestId))
        ));
   
-    return matchesSearch && matchesCategories;
+    // Фильтрация по радиусу
+    const matchesRadius = !userLocation || !radius || 
+      calculateDistance(
+        userLocation[0], 
+        userLocation[1],
+        event.coordinate_one,
+        event.coordinate_two
+      ) <= radius;
+  
+    return matchesSearch && matchesCategories && matchesRadius;
   });
 
   // Функция для форматирования даты
@@ -169,7 +203,7 @@ export default function Home() {
       day: 'numeric', 
       month: 'numeric', 
       year: 'numeric',
-      timeZone: 'UTC' // Добавляем для корректного отображения даты
+      timeZone: 'UTC'
     };
     return new Date(dateString).toLocaleDateString('ru-RU', options);
   };
@@ -252,6 +286,39 @@ export default function Home() {
             </>
           )}
 
+          {/* Кнопки выбора радиуса */}
+          {userLocation && (
+            <>
+              <div className='flex items-center justify-between w-full mb-2'>
+                <div className='text-[20px] font-medium'>Радиус поиска, км</div>
+                <div
+                  onClick={() => {
+                    setRadius(null);
+                    setSelectedPoint(null);
+                  }}
+                  className="text-[14px] text-[#878787] hover:text-[#373737] transition-all cursor-pointer"
+                >
+                  Сбросить
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {radiusOptions.map(km => (
+                  <button
+                    key={km}
+                    onClick={() => setRadius(km)}
+                    className={`px-3 py-1 text-sm rounded-full ${
+                      radius === km 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-gray-100 hover:bg-gray-200'
+                    }`}
+                  >
+                    {km} км
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
           {/* Прелоадер событий */}
           {eventsLoading ? (
             <div className="flex justify-center items-center h-32">
@@ -324,22 +391,54 @@ export default function Home() {
             }}
             modules={['control.ZoomControl', 'control.FullscreenControl']}
             instanceRef={mapRef}
+            onClick={handleMapClick}
           >
             {/* Местоположение пользователя */}
             {userLocation && (
               <Placemark
                 geometry={userLocation}
                 options={{
-                  iconLayout: 'default#image', // Указываем, что используем картинку
-                  iconImageHref: '/ya.png', // Путь к вашей картинке
-                  iconImageSize: [32, 32], // Размер иконки
-                  iconImageOffset: [-16, -32], // Смещение для правильного позиционирования
+                  iconLayout: 'default#image',
+                  iconImageHref: '/ya.png',
+                  iconImageSize: [32, 32],
+                  iconImageOffset: [-16, -32],
                 }}
                 properties={{
                   hintContent: 'Ваше местоположение',
                   balloonContent: 'Вы здесь'
                 }}
               />
+            )}
+
+            {/* Выбранная точка и радиус */}
+            {selectedPoint && (
+              <>
+                <Placemark
+                  geometry={selectedPoint}
+                  options={{
+                    iconLayout: 'default#image',
+                    iconImageHref: '/map-pin.png', // Ваша кастомная иконка
+                    iconImageSize: [32, 32],
+                    iconImageOffset: [-16, -32],
+                  }}
+                  properties={{
+                    hintContent: 'Центр поиска',
+                    balloonContent: 'Ищем мероприятия в этом районе'
+                  }}
+                />
+                {radius && (
+                  <Circle
+                    geometry={[selectedPoint, radius * 1000]} // радиус в метрах
+                    options={{
+                      fillColor: '#1a73e840',
+                      strokeColor: '#1a73e8',
+                      strokeOpacity: 0.8,
+                      strokeWidth: 2,
+                      fillOpacity: 0.2
+                    }}
+                  />
+                )}
+              </>
             )}
 
             {/* Мероприятия */}
