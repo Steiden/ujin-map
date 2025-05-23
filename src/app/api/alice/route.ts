@@ -1,52 +1,27 @@
+import { prisma } from "@/shared/lib/prisma";
 import axios from "axios";
 import { NextRequest, NextResponse } from "next/server";
-
-type Event = {
-	id: number;
-	title: string;
-	start_date: Date;
-	end_date: Date;
-	coordinate_one: number;
-	coordinate_two: number;
-	direction: string;
-	executor: string;
-	participants_count: number;
-	interests: number[];
-	address?: string;
-};
-
-// Функция для нормализации даты (упрощенная версия)
-const normalizeDate = (dateStr: string) => {
-	const today = new Date();
-	const tomorrow = new Date();
-	tomorrow.setDate(today.getDate() + 1);
-
-	if (dateStr.includes("завтра")) {
-		return tomorrow.toISOString().split("T")[0];
-	}
-	// Здесь можно добавить обработку других форматов дат
-	return dateStr;
-};
 
 export async function POST(request: NextRequest) {
 	try {
 		const body = await request.json();
 
 		// Получение событий
-		const eventsResponse = await axios.get("https://sinfully-tops-possum.cloudpub.ru/events").catch();
-		const events: Event[] = eventsResponse.data;
+		const events = await prisma.events.findMany();
 
 		// Запись адреса в события
 		events.forEach(async (event) => {
-			const addressResponse = await axios.get(`https://geocode-maps.yandex.ru/1.x/?`, {
-				params: {
-					format: "json",
-					geocode: `${event.coordinate_one},${event.coordinate_two}`,
-					kind: "house",
-					results: "1",
-					apikey: process.env.YANDEX_MAP_API,
-				},
-			}).catch();
+			const addressResponse = await axios
+				.get(`https://geocode-maps.yandex.ru/1.x/?`, {
+					params: {
+						format: "json",
+						geocode: `${event.coordinate_one},${event.coordinate_two}`,
+						kind: "house",
+						results: "1",
+						apikey: process.env.YANDEX_MAP_API,
+					},
+				})
+				.catch();
 			const address = addressResponse.data.response.GeoObjectCollection.featureMember[0];
 			event.address = address;
 		});
@@ -58,7 +33,7 @@ export async function POST(request: NextRequest) {
 
 		// Фильтруем мероприятия по городу и дате
 		let filteredEvents = events?.filter((event) => {
-			const matchesDate = event.start_date >= datetime?.value;
+			const matchesDate = event.start_date && event.start_date >= datetime?.value;
 			return matchesDate;
 		});
 
