@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// Типы для объектов Яндекс Диалогов
 interface YandexDateTime {
 	year?: number;
 	month?: number;
@@ -23,7 +22,6 @@ interface Event {
 	interests?: number[];
 }
 
-// Моковые данные мероприятий
 const data: Event[] = [
 	{
 		id: 1,
@@ -1307,127 +1305,148 @@ const data: Event[] = [
 	},
 ];
 
-// Вспомогательные функции для работы с датами
-const normalizeDate = (date: YandexDateTime): { start: Date; end?: Date } => {
-	if (date.datetime) {
-		return {
-			start: new Date(date.datetime),
-			end: date.datetime_to ? new Date(date.datetime_to) : undefined,
-		};
-	}
+// Вспомогательные функции дат
+const getToday = () => {
+	const date = new Date();
+	date.setHours(0, 0, 0, 0);
+	return date;
+};
 
-	const today = new Date();
-	if (date.is_relative) {
-		switch (date.day) {
-			case 0:
-				return { start: today }; // сегодня
-			case 1:
-				return { start: new Date(today.setDate(today.getDate() + 1)) }; // завтра
-			case 2: {
-				// послезавтра
-				const dayAfterTomorrow = new Date(today);
-				dayAfterTomorrow.setDate(today.getDate() + 2);
-				return { start: dayAfterTomorrow };
-			}
-		}
-	}
+const getTomorrow = () => {
+	const date = getToday();
+	date.setDate(date.getDate() + 1);
+	return date;
+};
 
+const getWeekend = () => {
+	const date = getToday();
+	const day = date.getDay();
+	const diff = date.getDate() + (day === 0 ? 6 : 6 - day);
 	return {
-		start: new Date(
-			date.year || today.getFullYear(),
-			(date.month || today.getMonth() + 1) - 1,
-			date.day || today.getDate()
-		),
+		start: new Date(date.setDate(diff - 5)), // Суббота
+		end: new Date(date.setDate(diff - 5 + 1)), // Воскресенье
 	};
 };
 
-// Фильтрация мероприятий
-const filterEvents = (events: Event[], city: string, dateFilter?: YandexDateTime) => {
-	const normalizedCity = city.toLowerCase().trim();
+const normalizeDate = (action?: string): YandexDateTime => {
+	switch (action) {
+		case "today":
+			return {
+				year: getToday().getFullYear(),
+				month: getToday().getMonth() + 1,
+				day: getToday().getDate(),
+			};
+		case "tomorrow":
+			return {
+				year: getTomorrow().getFullYear(),
+				month: getTomorrow().getMonth() + 1,
+				day: getTomorrow().getDate(),
+			};
+		case "weekend":
+			const weekend = getWeekend();
+			return {
+				datetime: weekend.start.toISOString(),
+				datetime_to: weekend.end.toISOString(),
+			};
+		default:
+			return {};
+	}
+};
+
+const filterEvents = (events: Event[], dateFilter?: YandexDateTime) => {
+	if (!dateFilter) return events;
+
+	const { datetime, datetime_to } = dateFilter;
+	const filterStart = datetime ? new Date(datetime) : null;
+	const filterEnd = datetime_to ? new Date(datetime_to) : filterStart;
 
 	return events.filter((event) => {
-		// Все мероприятия относятся к Перми
-		const cityMatch = normalizedCity === "пермь";
-
-		// Фильтрация по дате
-		if (!dateFilter) return cityMatch;
-
-		const { start, end } = normalizeDate(dateFilter);
 		const eventStart = new Date(event.start_date);
 		const eventEnd = new Date(event.end_date);
 
-		return (
-			cityMatch &&
-			((eventStart >= start && (!end || eventStart <= end)) ||
-				(eventEnd >= start && (!end || eventEnd <= end)))
-		);
+		if (filterStart && filterEnd) {
+			return (
+				(eventStart >= filterStart && eventStart <= filterEnd) ||
+				(eventEnd >= filterStart && eventEnd <= filterEnd)
+			);
+		}
+		return true;
 	});
 };
 
-// Форматирование даты для ответа
 const formatDate = (dateStr: string) => {
 	const date = new Date(dateStr);
 	return date.toLocaleDateString("ru-RU", {
 		day: "numeric",
 		month: "long",
-		year: "numeric",
 	});
 };
 
 export async function POST(request: NextRequest) {
 	try {
 		const body = await request.json();
+		const payload = body.request.payload;
+		const sessionState = body.state.session || {};
 
-		// Извлечение параметров из запроса
-		const geoEntity = body.request.nlu?.entities?.find((e: any) => e.type === "YANDEX.GEO");
-		const datetimeEntity = body.request.nlu?.entities?.find(
-			(e: any) => e.type === "YANDEX.DATETIME"
-		);
+		// Обработка действий из кнопок
+		let dateFilter = sessionState.dateFilter;
+		let offset = sessionState.offset || 0;
 
-		// Параметры фильтрации
-		const city = geoEntity?.value?.city || "Пермь";
-		const dateFilter = datetimeEntity?.value;
+		if (payload?.action) {
+			switch (payload.action) {
+				case "show_more":
+					offset += 5;
+					break;
+				case "today":
+				case "tomorrow":
+				case "weekend":
+					dateFilter = normalizeDate(payload.action);
+					offset = 0;
+					break;
+			}
+		}
 
 		// Фильтрация мероприятий
-		const filteredEvents = filterEvents(data, city, dateFilter);
+		let filteredEvents = filterEvents(data, dateFilter);
 
-		// Сортировка по дате начала
-		const sortedEvents = filteredEvents.sort(
-			(a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
-		);
+		// Пагинация
+		const paginatedEvents = filteredEvents.slice(offset, offset + 5);
+		const hasMore = filteredEvents.length > offset + 5;
 
 		// Формирование ответа
 		let responseText = "";
 		let responseTTS = "";
 		const buttons = [];
 
-		if (sortedEvents.length > 0) {
-			responseText = `Найдено мероприятий в ${city}:`;
-			responseTTS = `Я нашла ${sortedEvents.length} мероприятий в ${city}.`;
+		if (paginatedEvents.length > 0) {
+			responseText = `Найдено мероприятий: ${filteredEvents.length}\n`;
+			responseTTS = `Я нашла ${filteredEvents.length} мероприятий. `;
 
-			sortedEvents.slice(0, 5).forEach((event, index) => {
-				responseText += `\n${index + 1}. ${event.title} (${formatDate(event.start_date)})`;
-				responseTTS += ` ${event.title} ${formatDate(event.start_date)}.`;
+			paginatedEvents.forEach((event, index) => {
+				responseText += `\n${offset + index + 1}. ${event.title} (${formatDate(
+					event.start_date
+				)})`;
+				responseTTS += `${event.title}. `;
 			});
 
-			if (sortedEvents.length > 5) {
+			if (hasMore) {
 				buttons.push({
 					title: "Показать ещё",
 					payload: { action: "show_more" },
 					hide: true,
 				});
 			}
-
-			buttons.push(
-				{ title: "Сегодня", hide: true },
-				{ title: "Завтра", hide: true },
-				{ title: "Выходные", hide: true }
-			);
 		} else {
-			responseText = `К сожалению, в ${city} нет мероприятий по вашему запросу`;
+			responseText = "Мероприятий не найдено";
 			responseTTS = responseText;
-			buttons.push({ title: "Новый поиск", hide: true });
 		}
+
+		// Кнопки фильтров
+		buttons.push(
+			{ title: "Сегодня", payload: { action: "today" }, hide: true },
+			{ title: "Завтра", payload: { action: "tomorrow" }, hide: true },
+			{ title: "Выходные", payload: { action: "weekend" }, hide: true }
+		);
 
 		const response = {
 			response: {
@@ -1438,11 +1457,9 @@ export async function POST(request: NextRequest) {
 			},
 			version: body.version,
 			session_state: {
-				filters: {
-					city,
-					date: dateFilter,
-				},
-				offset: 5,
+				dateFilter,
+				offset,
+				total: filteredEvents.length,
 			},
 		};
 
@@ -1452,8 +1469,8 @@ export async function POST(request: NextRequest) {
 		return NextResponse.json(
 			{
 				response: {
-					text: "Произошла ошибка при поиске мероприятий",
-					tts: "Извините, я не смогла обработать ваш запрос",
+					text: "Произошла ошибка",
+					tts: "Извините, произошла ошибка",
 					end_session: true,
 				},
 				version: "1.0",
