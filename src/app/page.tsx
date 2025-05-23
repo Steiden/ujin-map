@@ -289,7 +289,7 @@ export default function Home() {
                       <div 
                         style={{
                           backgroundColor: item.color ? `#${item.color}` : '#9c89fa',
-                          opacity: selectedCategories.includes(item.id) ? '100%' : "40%"
+                          border: selectedCategories.includes(item.id) ? '2px dashed #000000' : "2px solid #FFF"
                         }} 
                         className='w-[48px] h-[48px] rounded-full mb-[6px] flex items-center justify-center transition-all'
                       >
