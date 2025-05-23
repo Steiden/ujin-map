@@ -1347,31 +1347,40 @@ const isDateInRange = (date: Date, start: Date, end: Date): boolean => {
 
 const filterEvents = (events: Event[], dateFilter: "today" | "tomorrow" | "weekend") => {
 	let range: { start: Date; end: Date };
+	let newEvents = events;
 
 	switch (dateFilter) {
 		case "today":
-			range = getTodayRange();
+			newEvents = events.filter((event) => new Date(event.start_date) === new Date());
 			break;
 		case "tomorrow":
-			range = getTomorrowRange();
+			const tomorrow = new Date();
+			tomorrow.setDate(tomorrow.getDate() + 1);
+			newEvents = events.filter((event) => new Date(event.start_date) === tomorrow);
 			break;
 		case "weekend":
 			range = getWeekendRange();
+			newEvents = events.filter(
+				(event) =>
+					new Date(event.start_date) >= range.start &&
+					new Date(event.end_date) <= range.end
+			);
 			break;
 		default:
 			return [];
 	}
 
-	return events.filter((event) => {
-		const eventStart = getStartOfDay(new Date(event.start_date));
-		const eventEnd = getStartOfDay(new Date(event.end_date));
+	// return events.filter((event) => {
+	// 	const eventStart = getStartOfDay(new Date(event.start_date));
+	// 	const eventEnd = getStartOfDay(new Date(event.end_date));
 
-		// Проверяем пересечение диапазонов
-		return (
-			isDateInRange(eventStart, range.start, range.end) ||
-			isDateInRange(range.start, eventStart, eventEnd)
-		);
-	});
+	// 	// Проверяем пересечение диапазонов
+	// 	return (
+	// 		isDateInRange(eventStart, range.start, range.end) ||
+	// 		isDateInRange(range.start, eventStart, eventEnd)
+	// 	);
+	// });
+	return events;
 };
 
 // Остальные функции остаются без изменений
